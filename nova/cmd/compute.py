@@ -72,3 +72,7 @@ def main():
                                     db_allowed=CONF.conductor.use_local)
     service.serve(server)
     service.wait()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

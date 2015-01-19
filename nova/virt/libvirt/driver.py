@@ -106,6 +106,10 @@ from nova.virt import netutils
 from nova.virt import watchdog_actions
 from nova import volume
 from nova.volume import encryptors
+#add by silenceli(2015.01.17)
+from nova.virt.oga_inspector import OGAInspector
+import socket
+import time
 
 libvirt = None
 
@@ -249,7 +253,10 @@ libvirt_opts = [
                 default=[],
                 help='List of guid targets and ranges.'
                      'Syntax is guest-gid:host-gid:count'
-                     'Maximum of 5 allowed.')
+                     'Maximum of 5 allowed.'),
+    cfg.BoolOpt('enable_ovirt_ga',
+                default=True,
+                help='Enable ovirt guest agent.'),
     ]
 
 CONF = cfg.CONF
@@ -905,6 +912,21 @@ class LibvirtDriver(driver.ComputeDriver):
             for hostname, port in serials:
                 serial_console.release_port(host=hostname, port=port)
 
+        #from luogangyi 1
+        if CONF.libvirt.enable_ovirt_ga:
+            target_dir = "/var/lib/libvirt/qemu/"
+            chmod_dir_cmd = ['chmod', '-R', 'o+x', target_dir]
+            utils.execute(*chmod_dir_cmd, run_as_root=True)
+            chmod_dir_cmd = ['chmod', 'o+rwx', target_dir]
+            utils.execute(*chmod_dir_cmd, run_as_root=True)
+            source_path = ("/var/lib/libvirt/qemu/%s.%s.sock" %
+                          ("com.redhat.rhevm.vdsm", instance['name']))
+            try:
+                if os.path.exists(source_path):
+                    libvirt_utils.file_delete(source_path)
+            except Exception:
+                LOG.debug("Error while deleting %", source_path)
+
         self._undefine_domain(instance)
 
     def _detach_encrypted_volumes(self, instance):
@@ -1025,6 +1047,23 @@ class LibvirtDriver(driver.ComputeDriver):
             self._undefine_domain(instance)
             self.unplug_vifs(instance, network_info)
             self.firewall_driver.unfilter_instance(instance, network_info)
+
+            # Note(luogangyi): support for oVirt guest agent.
+            # delete unix sock file if domain is destroyed 2
+            if CONF.libvirt.enable_ovirt_ga:
+                target_dir = "/var/lib/libvirt/qemu/"
+                chmod_dir_cmd = ['chmod', '-R', 'o+x', target_dir]
+                utils.execute(*chmod_dir_cmd, run_as_root=True)
+                chmod_dir_cmd = ['chmod', 'o+rwx', target_dir]
+                utils.execute(*chmod_dir_cmd, run_as_root=True)
+                source_path = ("/var/lib/libvirt/qemu/%s.%s.sock" %
+                              ("com.redhat.rhevm.vdsm", instance['name']))
+                try:
+                    if os.path.exists(source_path):
+                        libvirt_utils.file_delete(source_path)
+                except Exception:
+                    LOG.debug("Error while deleting %", source_path)
+
 
     def _connect_volume(self, connection_info, disk_info):
         driver_type = connection_info.get('driver_volume_type')
@@ -3983,6 +4022,19 @@ class LibvirtDriver(driver.ComputeDriver):
             channel.target_name = "com.redhat.spice.0"
             guest.add_device(channel)
 
+        #add by luogangyi 3
+        if CONF.libvirt.enable_ovirt_ga:
+            oga = vconfig.LibvirtConfigGuestChannel()
+            oga.type = "unix"
+            oga.target_name = "com.redhat.rhevm.vdsm"
+            # sock_name = ("%s.%s.sock" % ("com.redhat.rhevm.vdsm", instance['name']))
+            # oga.source_path = os.path.join('/var', sock_name)
+            # oga.source_path = os.path.join(inst_path, sock_name)
+            oga.source_path = ("/var/lib/libvirt/qemu/%s.%s.sock" %
+                              ("com.redhat.rhevm.vdsm", instance['name']))
+            #libvirt_utils.write_to_file(oga.source_path, '', 7)
+            guest.add_device(oga)
+
         # NB some versions of libvirt support both SPICE and VNC
         # at the same time. We're not trying to second guess which
         # those versions are. We'll just let libvirt report the
@@ -6343,3 +6395,26 @@ class LibvirtDriver(driver.ComputeDriver):
     def is_supported_fs_format(self, fs_type):
         return fs_type in [disk.FS_FORMAT_EXT2, disk.FS_FORMAT_EXT3,
                            disk.FS_FORMAT_EXT4, disk.FS_FORMAT_XFS]
+
+
+    #add by silenceli
+    def set_admin_password(self, instance, new_pass):
+        inspector = OGAInspector()
+        inspector.mkdir(new_pass,instance.name)
+        '''
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        #sock.connect("/var/lib/libvirt/qemu/channels/centosga.com.redhat.rhevm.vdsm")
+        sock.connect("/var/lib/libvirt/qemu/com.redhat.rhevm.vdsm.instance-00000010.sock")
+        print sock.recv(1024)
+        print sock.recv(1024)
+        print sock.recv(1024)
+        print sock.recv(1024)
+        time.sleep(2)
+        try:
+            sock.send('1')
+            sock.send('{"__name__": "mkdir", "dir": "123456"}\n')
+        except Exception, e:
+            print e
+            print "error!!!! ovirt"
+        sock.close()
+                '''
