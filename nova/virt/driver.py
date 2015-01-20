@@ -30,6 +30,8 @@ from nova.openstack.common import log as logging
 from nova import utils
 from nova.virt import event as virtevent
 
+
+
 driver_opts = [
     cfg.StrOpt('compute_driver',
                help='Driver to use for controlling virtualization. Options '

@@ -110,6 +110,7 @@ from nova.volume import encryptors
 from nova.virt.oga_inspector import OGAInspector
 import socket
 import time
+import json
 
 libvirt = None
 
@@ -6399,22 +6400,14 @@ class LibvirtDriver(driver.ComputeDriver):
 
     #add by silenceli
     def set_admin_password(self, instance, new_pass):
-        inspector = OGAInspector()
-        inspector.mkdir(new_pass,instance.name)
-        '''
+        _VMCHANNEL_DEVICE_NAME = 'com.redhat.rhevm.vdsm'
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        #sock.connect("/var/lib/libvirt/qemu/channels/centosga.com.redhat.rhevm.vdsm")
-        sock.connect("/var/lib/libvirt/qemu/com.redhat.rhevm.vdsm.instance-00000010.sock")
-        print sock.recv(1024)
-        print sock.recv(1024)
-        print sock.recv(1024)
-        print sock.recv(1024)
-        time.sleep(2)
-        try:
-            sock.send('1')
-            sock.send('{"__name__": "mkdir", "dir": "123456"}\n')
-        except Exception, e:
-            print e
-            print "error!!!! ovirt"
-        sock.close()
-                '''
+        sock_path = "/var/lib/libvirt/qemu/" + _VMCHANNEL_DEVICE_NAME + "." + instance.name + ".sock"
+        print sock_path
+        sock.connect(sock_path)
+        cmd = "set_admin_password"
+        args = {'admin_password':new_pass}
+        args['__name__'] = cmd
+        message = (json.dumps(args) + '\n').encode('utf8')
+        print message
+        sock.send(message)
