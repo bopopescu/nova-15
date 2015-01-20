@@ -767,6 +767,13 @@ class ComputeAPI(object):
         return cctxt.call(ctxt, 'set_admin_password',
                           instance=instance, new_pass=new_pass)
 
+    def rename(self, ctxt, instance, hostname):
+        version = '3.8'
+        cctxt = self.client.prepare(server=_compute_host(None, instance),
+                version=version)
+        return cctxt.call(ctxt, 'rename',
+                          instance=instance, hostname=hostname)
+
     def set_host_enabled(self, ctxt, enabled, host):
         version = '3.0'
         cctxt = self.client.prepare(server=host, version=version)

@@ -650,6 +650,8 @@ class Controller(wsgi.Controller):
 
     def update(self, req, id, body):
         """Update server then pass on to version-specific controller."""
+        #modified by silenceli
+        flag = 0
         if not self.is_valid_body(body, 'server'):
             raise exc.HTTPUnprocessableEntity()
 
@@ -660,6 +662,7 @@ class Controller(wsgi.Controller):
             name = body['server']['name']
             self._validate_server_name(name)
             update_dict['display_name'] = name.strip()
+            flag = 1
 
         if 'accessIPv4' in body['server']:
             access_ipv4 = body['server']['accessIPv4']
@@ -697,7 +700,12 @@ class Controller(wsgi.Controller):
         except exception.NotFound:
             msg = _("Instance could not be found")
             raise exc.HTTPNotFound(explanation=msg)
-
+        if flag == 1:
+                try:
+                    self.compute_api.rename(ctxt, instance, name.strip())
+                except NotImplementedError:
+                    msg = _("Unable to set password on instance")
+                    raise exc.HTTPNotImplemented(explanation=msg)
         return self._view_builder.show(req, instance)
 
     @wsgi.response(204)

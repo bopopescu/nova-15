@@ -1320,6 +1320,11 @@ class InstancePasswordSetFailed(NovaException):
                 "because %(reason)s")
     safe = True
 
+class InstanceHostnameSetFailed(NovaException):
+    msg_fmt = _("Failed to set hostname on %(instance)s "
+                "because %(reason)s")
+    safe = True
+
 
 class InstanceNotFound(NotFound):
     ec2_code = 'InvalidInstanceID.NotFound'

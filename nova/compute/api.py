@@ -2820,6 +2820,26 @@ class API(base.Base):
         self.compute_rpcapi.set_admin_password(context,
                                                instance=instance,
                                                new_pass=password)
+    @wrap_check_policy
+    @check_instance_lock
+    @check_instance_cell
+    @check_instance_state(vm_state=[vm_states.ACTIVE])
+    def rename(self, context, instance, hostname=None):
+        """Set the vm hostname for the given instance.
+
+        @param context: Nova auth context.
+        @param instance: Nova instance object.
+        @param hostname: The new hostname for the instance.
+        """
+        instance.task_state = task_states.SET_HOSTNAME
+        instance.save(expected_task_state=[None])
+
+        self._record_action_start(context, instance,
+                                  instance_actions.CHANGE_HOSTNAME)
+
+        self.compute_rpcapi.rename(context,
+                                   instance=instance,
+                                   hostname=hostname)
 
     @wrap_check_policy
     @check_instance_host

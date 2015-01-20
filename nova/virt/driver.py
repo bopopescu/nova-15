@@ -969,6 +969,14 @@ class ComputeDriver(object):
         """
         raise NotImplementedError()
 
+    def rename(self, instance, hostname):
+        """Set the instance hostname on the specified instance.
+
+        :param instance: nova.objects.instance.Instance
+        :param hostname: the new hostname
+        """
+        raise NotImplementedError()
+
     def inject_file(self, instance, b64_path, b64_contents):
         """Writes a file on the specified instance.
 

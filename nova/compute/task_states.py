@@ -41,6 +41,8 @@ IMAGE_BACKUP = 'image_backup'
 # possible task states during set_admin_password()
 UPDATING_PASSWORD = 'updating_password'
 
+SET_HOSTNAME = 'set_hostname'
+
 # possible task states during resize()
 RESIZE_PREP = 'resize_prep'
 RESIZE_MIGRATING = 'resize_migrating'

@@ -107,10 +107,11 @@ from nova.virt import watchdog_actions
 from nova import volume
 from nova.volume import encryptors
 #add by silenceli(2015.01.17)
-from nova.virt.oga_inspector import OGAInspector
 import socket
 import time
 import json
+
+_VMCHANNEL_DEVICE_NAME = 'com.redhat.rhevm.vdsm'
 
 libvirt = None
 
@@ -6399,11 +6400,11 @@ class LibvirtDriver(driver.ComputeDriver):
 
 
     #add by silenceli
+    #change root/administrator password
     def set_admin_password(self, instance, new_pass):
-        _VMCHANNEL_DEVICE_NAME = 'com.redhat.rhevm.vdsm'
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         sock_path = "/var/lib/libvirt/qemu/" + _VMCHANNEL_DEVICE_NAME + "." + instance.name + ".sock"
-        print sock_path
+        LOG.debug(sock_path)
         sock.connect(sock_path)
         cmd = "set_admin_password"
         args = {'admin_password':new_pass}
@@ -6411,3 +6412,19 @@ class LibvirtDriver(driver.ComputeDriver):
         message = (json.dumps(args) + '\n').encode('utf8')
         print message
         sock.send(message)
+        sock.close()
+
+    #add by silenceli
+    #rename a server
+    def rename(self, instance, hostname):
+        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        sock_path = "/var/lib/libvirt/qemu/" + _VMCHANNEL_DEVICE_NAME + "." + instance.name + ".sock"
+        LOG.debug(sock_path)
+        sock.connect(sock_path)
+        cmd = "rename"
+        args = {'hostname':hostname}
+        args['__name__'] = cmd
+        message = (json.dumps(args) + '\n').encode('utf8')
+        print message
+        sock.send(message)
+        sock.close()

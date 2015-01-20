@@ -634,6 +634,14 @@ class CellsAPI(object):
                    admin_password=new_pass, files_to_inject=injected_files,
                    preserve_ephemeral=preserve_ephemeral, kwargs=kwargs)
 
+    def rename(self, ctxt, instance, hostname):
+        if not CONF.cells.enable:
+            return
+
+        cctxt = self.client.prepare(version='1.29')
+        cctxt.cast(ctxt, 'rename', instance=instance,
+                hostname=hostname)
+
     def set_admin_password(self, ctxt, instance, new_pass):
         if not CONF.cells.enable:
             return

@@ -567,5 +567,8 @@ class CellsManager(manager.Manager):
                                          admin_password, files_to_inject,
                                          preserve_ephemeral, kwargs)
 
+    def rename(self, ctxt, instance, hostname):
+        self.msg_runner.set_admin_password(ctxt, instance, hostname)
+
     def set_admin_password(self, ctxt, instance, new_pass):
         self.msg_runner.set_admin_password(ctxt, instance, new_pass)

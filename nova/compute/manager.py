@@ -3240,6 +3240,61 @@ class ComputeManager(manager.Manager):
             raise exception.InstancePasswordSetFailed(
                 instance=instance.uuid, reason=_msg)
 
+    @object_compat
+    @wrap_exception()
+    @reverts_task_state
+    @wrap_instance_event
+    @wrap_instance_fault
+    def rename(self, context, instance, hostname):
+        '''change vm hostname'''
+        context = context.elevated()
+        if hostname is None:
+            # Generate a random password
+            hostname = "bcec-auto"
+
+        current_power_state = self._get_power_state(context, instance)
+        expected_state = power_state.RUNNING
+
+        if current_power_state != expected_state:
+            instance.task_state = None
+            instance.save(expected_task_state=task_states.SET_HOSTNAME)
+            _msg = _('Failed to set vm hostname. Instance %s is not'
+                     ' running') % instance.uuid
+            raise exception.InstanceHostnameSetFailed(
+                instance=instance.uuid, reason=_msg)
+
+        try:
+            self.driver.rename(instance, hostname)
+            LOG.audit(_("new hostname set"), instance=instance)
+            instance.task_state = None
+            instance.save(
+                expected_task_state=task_states.SET_HOSTNAME)
+        except NotImplementedError:
+            LOG.warning(_LW('rename is not implemented '
+                            'by this driver or guest instance.'),
+                        instance=instance)
+            instance.task_state = None
+            instance.save(
+                expected_task_state=task_states.SET_HOSTNAME)
+            raise NotImplementedError(_('rename is not '
+                                        'implemented by this driver or guest '
+                                        'instance.'))
+        except exception.UnexpectedTaskStateError:
+            # interrupted by another (most likely delete) task
+            # do not retry
+            raise
+        except Exception as e:
+            # Catch all here because this could be anything.
+            LOG.exception(_LE('rename failed: %s'), e,
+                          instance=instance)
+            self._set_instance_obj_error_state(context, instance)
+            # We create a new exception here so that we won't
+            # potentially reveal password information to the
+            # API caller.  The real exception is logged above
+            _msg = _('error setting vm hostanme')
+            raise exception.InstanceHostnameSetFailed(
+                instance=instance.uuid, reason=_msg)
+
     @wrap_exception()
     @reverts_task_state
     @wrap_instance_fault
