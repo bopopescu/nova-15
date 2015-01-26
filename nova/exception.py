@@ -1827,3 +1827,6 @@ class MemoryPageSizeForbidden(Invalid):
 
 class MemoryPageSizeNotSupported(Invalid):
     msg_fmt = _("Page size %(pagesize)s is not supported by the host.")
+
+class SetAdminPasswordFailed(NovaException):
+    msg_fmt = _("set_admin_password is failed, because %(reason)s")

@@ -692,6 +692,14 @@ class Controller(wsgi.Controller):
             raise exc.HTTPBadRequest(explanation=msg)
 
         instance = self._get_server(ctxt, req, id)
+
+        if flag == 1:
+            try:
+                self.compute_api.rename(ctxt, instance, name.strip())
+            except NotImplementedError:
+                msg = _("Unable to set password on instance")
+                raise exc.HTTPNotImplemented(explanation=msg)
+
         try:
             policy.enforce(ctxt, 'compute:update', instance)
             instance.update(update_dict)
@@ -700,12 +708,6 @@ class Controller(wsgi.Controller):
         except exception.NotFound:
             msg = _("Instance could not be found")
             raise exc.HTTPNotFound(explanation=msg)
-        if flag == 1:
-                try:
-                    self.compute_api.rename(ctxt, instance, name.strip())
-                except NotImplementedError:
-                    msg = _("Unable to set password on instance")
-                    raise exc.HTTPNotImplemented(explanation=msg)
         return self._view_builder.show(req, instance)
 
     @wsgi.response(204)

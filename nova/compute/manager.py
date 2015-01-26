@@ -3214,6 +3214,13 @@ class ComputeManager(manager.Manager):
             instance.task_state = None
             instance.save(
                 expected_task_state=task_states.UPDATING_PASSWORD)
+        except exception.SetAdminPasswordFailed as e:
+            LOG.warning(_LW('set_admin_password is failed'),
+                        instance=instance)
+            instance.task_state = None
+            instance.save(
+                expected_task_state=task_states.UPDATING_PASSWORD)
+            raise
         except NotImplementedError:
             LOG.warning(_LW('set_admin_password is not implemented '
                             'by this driver or guest instance.'),
@@ -3283,15 +3290,27 @@ class ComputeManager(manager.Manager):
             # interrupted by another (most likely delete) task
             # do not retry
             raise
+        except socket.timeout as e:
+            LOG.exception(_LE('rename failed: %s'), e,
+                          instance=instance)
+            # We create a new exception here so that we won't
+            # potentially reveal password information to the
+            # API caller.  The real exception is logged above
+            _msg = _('socket connect to ovirt-guest-agent timeout')
+            raise exception.InstanceHostnameSetFailed(
+                instance=instance.uuid, reason=_msg)
+        except exception.NovaException as e:
+            _msg = e.message
+            raise exception.InstanceHostnameSetFailed(
+                instance=instance.uuid, reason=_msg)
         except Exception as e:
             # Catch all here because this could be anything.
             LOG.exception(_LE('rename failed: %s'), e,
                           instance=instance)
-            self._set_instance_obj_error_state(context, instance)
             # We create a new exception here so that we won't
             # potentially reveal password information to the
             # API caller.  The real exception is logged above
-            _msg = _('error setting vm hostanme')
+            _msg = _('Unknown reason')
             raise exception.InstanceHostnameSetFailed(
                 instance=instance.uuid, reason=_msg)
 

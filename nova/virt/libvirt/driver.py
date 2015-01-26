@@ -106,12 +106,11 @@ from nova.virt import netutils
 from nova.virt import watchdog_actions
 from nova import volume
 from nova.volume import encryptors
+
 #add by silenceli(2015.01.17)
 import socket
 import time
-import json
 
-_VMCHANNEL_DEVICE_NAME = 'com.redhat.rhevm.vdsm'
 
 libvirt = None
 
@@ -302,6 +301,7 @@ CONSOLE = "console=tty0 console=ttyS0"
 GuestNumaConfig = collections.namedtuple(
     'GuestNumaConfig', ['cpuset', 'cputune', 'numaconfig', 'numatune'])
 
+from nova.virt.libvirt.ovirtguestagent import OvirtGA
 
 def patch_tpool_proxy():
     """eventlet.tpool.Proxy doesn't work with old-style class in __str__()
@@ -6399,32 +6399,38 @@ class LibvirtDriver(driver.ComputeDriver):
                            disk.FS_FORMAT_EXT4, disk.FS_FORMAT_XFS]
 
 
+
     #add by silenceli
     #change root/administrator password
     def set_admin_password(self, instance, new_pass):
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock_path = "/var/lib/libvirt/qemu/" + _VMCHANNEL_DEVICE_NAME + "." + instance.name + ".sock"
-        LOG.debug(sock_path)
-        sock.connect(sock_path)
-        cmd = "set_admin_password"
-        args = {'admin_password':new_pass}
-        args['__name__'] = cmd
-        message = (json.dumps(args) + '\n').encode('utf8')
-        print message
-        sock.send(message)
-        sock.close()
+        oga = OvirtGA()
+        message = ""
+        try:
+            oga.set_admin_password(new_pass, instance.name)
+        except socket.timeout as e:
+            LOG.error(e.message)
+            raise exception.SetAdminPasswordFailed(reason=e.message)
+        except exception.NovaException as e:
+            LOG.error("set_admin_password failed, errmsg = %s", e.message)
+            message = "set_admin_password failed, errmsg = " + e.message
+            raise exception.SetAdminPasswordFailed(reason=message)
+        except NotImplementedError as e:
+            raise NotImplementedError()
+        except exception, e:
+            LOG.error("set_admin_password meet unknown error, errmsg = %s", e.message)
+            message = "set_admin_password meet unknown error, errmsg = " + e.message
+            raise exception.SetAdminPasswordFailed(reason=message)
+        finally:
+            oga.close()
 
     #add by silenceli
     #rename a server
     def rename(self, instance, hostname):
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        sock_path = "/var/lib/libvirt/qemu/" + _VMCHANNEL_DEVICE_NAME + "." + instance.name + ".sock"
-        LOG.debug(sock_path)
-        sock.connect(sock_path)
-        cmd = "rename"
-        args = {'hostname':hostname}
-        args['__name__'] = cmd
-        message = (json.dumps(args) + '\n').encode('utf8')
-        print message
-        sock.send(message)
-        sock.close()
+        oga = OvirtGA()
+        try:
+            oga.rename(hostname, instance.name)
+        except exception, e:
+            raise
+        finally:
+            oga.close()
+
