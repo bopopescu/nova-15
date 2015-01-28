@@ -6404,22 +6404,10 @@ class LibvirtDriver(driver.ComputeDriver):
     #change root/administrator password
     def set_admin_password(self, instance, new_pass):
         oga = OvirtGA()
-        message = ""
         try:
             oga.set_admin_password(new_pass, instance.name)
-        except socket.timeout as e:
-            LOG.error(e.message)
+        except BaseException as e:
             raise exception.SetAdminPasswordFailed(reason=e.message)
-        except exception.NovaException as e:
-            LOG.error("set_admin_password failed, errmsg = %s", e.message)
-            message = "set_admin_password failed, errmsg = " + e.message
-            raise exception.SetAdminPasswordFailed(reason=message)
-        except NotImplementedError as e:
-            raise NotImplementedError()
-        except exception, e:
-            LOG.error("set_admin_password meet unknown error, errmsg = %s", e.message)
-            message = "set_admin_password meet unknown error, errmsg = " + e.message
-            raise exception.SetAdminPasswordFailed(reason=message)
         finally:
             oga.close()
 
@@ -6429,7 +6417,7 @@ class LibvirtDriver(driver.ComputeDriver):
         oga = OvirtGA()
         try:
             oga.rename(hostname, instance.name)
-        except exception, e:
+        except BaseException:
             raise
         finally:
             oga.close()
